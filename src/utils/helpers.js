@@ -345,6 +345,17 @@ export default {
 		return name.replace(/(\r\n)+|\r+|\n+|\t+/g, "").trim();
 	},
 	/**
+	 * Escapes a string for use as a shell argument.
+	 * @param {string} arg
+	 * @returns {string}
+	 */
+	shellEscape(arg) {
+		const str = String(arg ?? "");
+		if (!str.length) return "''";
+		if (/^[A-Za-z0-9_@%+=:,./-]+$/.test(str)) return str;
+		return `'${str.replace(/'/g, "'\\''")}'`;
+	},
+	/**
 	 * Creates a debounced function that delays invoking the input function until after 'wait' milliseconds have elapsed
 	 * since the last time the debounced function was invoked. Useful for implementing behavior that should only happen
 	 * after the input is complete.

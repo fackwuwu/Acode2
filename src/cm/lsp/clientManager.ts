@@ -204,6 +204,8 @@ export class LspClientManager {
 							kind: "axs",
 							command: "ssh",
 							args: [
+								"-o",
+								"StrictHostKeyChecking=accept-new",
 								"-p",
 								String(sshPort),
 								...(keyFile ? ["-i", decodeURIComponent(keyFile)] : []),

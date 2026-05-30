@@ -885,7 +885,7 @@ class TerminalManager {
 						// Instead of starting a shell and then typing 'ssh',
 						// we tell AXS to start the ssh process directly.
 						// We use -o StrictHostKeyChecking=accept-new to automatically handle host keys.
-						const fullSshCommand = `ssh -o StrictHostKeyChecking=accept-new -p ${port} ${keyFile ? `-i ${JSON.stringify(keyFile)}` : ""} ${username}@${host}`;
+						const fullSshCommand = `ssh -o StrictHostKeyChecking=accept-new -p ${port} ${keyFile ? `-i ${helpers.shellEscape(keyFile)}` : ""} ${helpers.shellEscape(username)}@${helpers.shellEscape(host)}`;
 
 						const response = await fetch(
 							`http://localhost:${terminalComponent.options.port}/terminals`,
