@@ -41,7 +41,7 @@ export interface WorkspaceFileUpdate {
 // Transport Types
 // ============================================================================
 
-export type TransportKind = "websocket" | "stdio" | "external";
+export type TransportKind = "websocket" | "stdio" | "external" | "ssh";
 
 export interface WebSocketTransportOptions {
 	binary?: boolean;

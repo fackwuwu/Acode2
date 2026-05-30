@@ -18,6 +18,7 @@ import { setKeyBindings } from "cm/commandRegistry";
 import { initModes } from "cm/modelist";
 import Contextmenu from "components/contextmenu";
 import { hasConnectedServers } from "components/lspInfoDialog";
+import remoteStatusBar from "components/remoteStatusBar";
 import Sidebar from "components/sidebar";
 import { TerminalManager } from "components/terminal";
 import tile from "components/tile";
@@ -535,6 +536,13 @@ async function loadApp() {
 	}
 
 	initFileList();
+
+	// Check if any added folder is a remote one
+	const remoteFolder = addedFolder.find((f) => f.url.startsWith("sftp:"));
+	if (remoteFolder) {
+		const { hostname } = Url.parse(remoteFolder.url);
+		remoteStatusBar.update(hostname);
+	}
 
 	TerminalManager.restorePersistedSessions().catch((error) => {
 		console.error("Terminal restoration failed:", error);

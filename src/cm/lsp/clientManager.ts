@@ -16,6 +16,7 @@ import { EditorView, keymap } from "@codemirror/view";
 import lspStatusBar from "components/lspStatusBar";
 import NotificationManager from "lib/notificationManager";
 import Uri from "utils/Uri";
+import Url from "utils/Url";
 import { clearDiagnosticsEffect } from "./diagnostics";
 import { documentHighlightsExtension } from "./documentHighlights";
 import { inlayHintsExtension } from "./inlayHints";
@@ -184,6 +185,41 @@ export class LspClientManager {
 
 		for (const server of servers) {
 			let targetLanguageId = effectiveLang;
+			let effectiveServer = server;
+
+			// If file is remote (SFTP/SSH), we need to tunnel LSP via SSH
+			if (originalUri.startsWith("sftp:")) {
+				const { hostname, port, username, query } = Url.parse(originalUri);
+				const { keyFile } = query;
+				const sshTarget = `${username}@${hostname}`;
+				const sshPort = port || 22;
+
+				// Clone and modify server definition for remote execution
+				effectiveServer = {
+					...server,
+					id: `${server.id}::remote::${sshTarget}`,
+					launcher: {
+						...server.launcher,
+						bridge: {
+							kind: "axs",
+							command: "ssh",
+							args: [
+								"-p",
+								String(sshPort),
+								...(keyFile ? ["-i", decodeURIComponent(keyFile)] : []),
+								sshTarget,
+								server.launcher?.bridge?.command ||
+									server.launcher?.command ||
+									server.id,
+								...(server.launcher?.bridge?.args ||
+									server.launcher?.args ||
+									[]),
+							],
+						},
+					},
+				};
+			}
+
 			if (server.resolveLanguageId) {
 				try {
 					const resolved = server.resolveLanguageId({
@@ -202,7 +238,7 @@ export class LspClientManager {
 			}
 
 			try {
-				const clientState = await this.#ensureClient(server, {
+				const clientState = await this.#ensureClient(effectiveServer, {
 					uri: normalizedUri,
 					file,
 					view,
