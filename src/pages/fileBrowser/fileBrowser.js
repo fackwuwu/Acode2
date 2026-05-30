@@ -337,7 +337,8 @@ function FileBrowserInclude(mode, info, doesOpenLast = true) {
 					break;
 
 				case "addFtp":
-				case "addSftp": {
+				case "addSftp":
+				case "addSshRemote": {
 					const storage = await remoteStorage[action]();
 					updateStorage(storage);
 					break;
@@ -779,6 +780,14 @@ function FileBrowserInclude(mode, info, doesOpenLast = true) {
 					options.push(["edit", strings.edit, "edit"]);
 				}
 
+				if (storageType === "ssh-remote") {
+					options.push([
+						"open_terminal",
+						strings["open in terminal"] || "Open in Terminal",
+						"licons terminal",
+					]);
+				}
+
 				if (helpers.isFile(type)) {
 					options.push(["info", strings.info, "info"]);
 					options.push(["open_with", strings["open with"], "open_in_browser"]);
@@ -824,6 +833,27 @@ function FileBrowserInclude(mode, info, doesOpenLast = true) {
 						if (!storage) break;
 						storage.uuid = uuid;
 						updateStorage(storage);
+						break;
+					}
+
+					case "open_terminal": {
+						const { TerminalManager } = await import("components/terminal");
+						const { hostname, port, username, password, query } = URLParse(
+							url,
+							true,
+						);
+						const { keyFile, passPhrase } = query;
+
+						await TerminalManager.createSshTerminal({
+							host: hostname,
+							port: port || 22,
+							username: decodeURIComponent(username),
+							password: decodeURIComponent(password || ""),
+							keyFile: decodeURIComponent(keyFile || ""),
+							passPhrase: decodeURIComponent(passPhrase || ""),
+							name: name,
+						});
+						$page.hide();
 						break;
 					}
 

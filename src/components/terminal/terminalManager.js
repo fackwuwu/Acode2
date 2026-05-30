@@ -799,6 +799,136 @@ class TerminalManager {
 	}
 
 	/**
+	 * Create an SSH terminal session
+	 * @param {object} options - SSH connection options
+	 * @param {string} options.host - SSH host
+	 * @param {number} [options.port=22] - SSH port
+	 * @param {string} options.username - SSH username
+	 * @param {string} [options.password] - SSH password
+	 * @param {string} [options.keyFile] - SSH key file path
+	 * @param {string} [options.passPhrase] - SSH key passphrase
+	 * @returns {Promise<object>} Terminal instance info
+	 */
+	async createSshTerminal(options = {}) {
+		const {
+			host,
+			port = 22,
+			username,
+			password,
+			keyFile,
+			passPhrase,
+			name,
+		} = options;
+		const terminalName = name || `SSH: ${username}@${host}`;
+
+		// Build SSH command
+		let sshCmd = `ssh -p ${port}`;
+		if (keyFile) {
+			sshCmd += ` -i ${JSON.stringify(keyFile)}`;
+		}
+		sshCmd += ` ${username}@${host}`;
+
+		try {
+			const installationResult = await this.checkAndInstallTerminal();
+			if (!installationResult.success) {
+				throw new Error(installationResult.error);
+			}
+
+			const terminalId = `ssh_terminal_${++this.terminalCounter}`;
+			const terminalComponent = new TerminalComponent({
+				serverMode: true,
+			});
+
+			const terminalContainer = tag("div", {
+				className: "terminal-content",
+				id: `terminal-${terminalId}`,
+			});
+
+			// Terminal styles (inject once)
+			if (!document.getElementById("acode-terminal-styles")) {
+				const terminalStyle = tag("style", {
+					id: "acode-terminal-styles",
+					textContent: this.getTerminalStyles(),
+				});
+				document.body.appendChild(terminalStyle);
+			}
+
+			const terminalFile = new EditorFile(terminalName, {
+				type: "terminal",
+				content: terminalContainer,
+				tabIcon: "licons terminal",
+				render: true,
+			});
+
+			return await new Promise((resolve, reject) => {
+				setTimeout(async () => {
+					try {
+						terminalComponent.mount(terminalContainer);
+
+						// Start session with SSH command
+						// We need a way to tell AXS to run a specific command
+						// Looking at AXS API, POST /terminals accepts a JSON body
+						const requestBody = {
+							cols: terminalComponent.terminal.cols,
+							rows: terminalComponent.terminal.rows,
+							cwd: "/home/alpine",
+							env: {
+								TERM: "xterm-256color",
+							},
+							// Assuming AXS supports 'args' or similar to run a command instead of default shell
+							// If not, we can write the command to the terminal after connection
+							// But the best way is to start the process directly.
+							// For now, let's connect and then send the command if password is not needed immediately,
+							// or better, use a script.
+						};
+
+						// Instead of starting a shell and then typing 'ssh',
+						// we tell AXS to start the ssh process directly.
+						// We use -o StrictHostKeyChecking=accept-new to automatically handle host keys.
+						const fullSshCommand = `ssh -o StrictHostKeyChecking=accept-new -p ${port} ${keyFile ? `-i ${JSON.stringify(keyFile)}` : ""} ${username}@${host}`;
+
+						const response = await fetch(
+							`http://localhost:${terminalComponent.options.port}/terminals`,
+							{
+								method: "POST",
+								headers: { "Content-Type": "application/json" },
+								body: JSON.stringify({
+									...requestBody,
+									cmd: fullSshCommand,
+								}),
+							},
+						);
+
+						if (!response.ok)
+							throw new Error(`HTTP error! status: ${response.status}`);
+						const pid = (await response.text()).trim();
+
+						await terminalComponent.connectToSession(pid);
+
+						this.setupTerminalHandlers(terminalFile, terminalComponent, pid);
+
+						const instance = {
+							id: pid,
+							name: terminalName,
+							component: terminalComponent,
+							file: terminalFile,
+							container: terminalContainer,
+						};
+
+						this.terminals.set(pid, instance);
+						resolve(instance);
+					} catch (error) {
+						reject(error);
+					}
+				}, 100);
+			});
+		} catch (error) {
+			console.error("Failed to create SSH terminal:", error);
+			throw error;
+		}
+	}
+
+	/**
 	 * Handle keyboard resize events for all terminals
 	 * This is called when the virtual keyboard opens/closes on mobile
 	 */

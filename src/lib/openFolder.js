@@ -2,6 +2,7 @@ import fsOperation from "fileSystem";
 import sidebarApps from "sidebarApps";
 import collapsableList from "components/collapsableList";
 import FileTree from "components/fileTree";
+import remoteStatusBar from "components/remoteStatusBar";
 import Sidebar from "components/sidebar";
 import { TerminalManager } from "components/terminal";
 import tile from "components/tile";
@@ -179,6 +180,12 @@ function openFolder(_path, opts = {}) {
 
 		folder.listFiles = listFiles;
 		addedFolder.push(folder);
+
+		// Update remote status bar if needed
+		if (_path.startsWith("sftp:")) {
+			const { hostname } = Url.parse(_path);
+			remoteStatusBar.update(hostname);
+		}
 	})();
 
 	if (listState[_path]) {
@@ -198,6 +205,18 @@ function openFolder(_path, opts = {}) {
 
 		const index = addedFolder.findIndex((folder) => folder.url === _path);
 		if (index !== -1) addedFolder.splice(index, 1);
+
+		// Update remote status bar if needed
+		if (_path.startsWith("sftp:")) {
+			const remoteFolder = addedFolder.find((f) => f.url.startsWith("sftp:"));
+			if (remoteFolder) {
+				const { hostname } = Url.parse(remoteFolder.url);
+				remoteStatusBar.update(hostname);
+			} else {
+				remoteStatusBar.update(null);
+			}
+		}
+
 		editorManager.emit("update", "remove-folder");
 		editorManager.onupdate("remove-folder", event);
 		editorManager.emit("remove-folder", event);

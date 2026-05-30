@@ -181,6 +181,7 @@
 	"an error occurred": "An error occurred",
 	"add ftp": "Add FTP",
 	"add sftp": "Add SFTP",
+	"add ssh remote": "Add SSH Remote",
 	"save file": "Save file",
 	"save file as": "Save file as",
 	"files": "Files",
